@@ -1,55 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle, Settings, X, ChevronLeft, ChevronRight, ZoomIn, HelpCircle } from "lucide-react";
 import { supabase, type GlennPhoto } from "@/lib/supabase";
-import { generateFluxImage } from "@/lib/flux";
+import { generateFluxImage, type FluxGenerationParams } from "@/lib/flux";
 
-const typeColors = {
-  portrait: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  landscape: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  adventure: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-  creative: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
-  candid: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  lifestyle: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-  artistic: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-  professional: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
-  nature: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  casual: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
-};
 
-const swedishCategories = {
-  portrait: "porträtt",
-  landscape: "landskap", 
-  adventure: "äventyr",
-  creative: "kreativ",
-  candid: "naturlig",
-  lifestyle: "livsstil",
-  artistic: "konstnärlig",
-  professional: "seriös",
-  nature: "natur",
-  casual: "avslappnad"
-};
-
-// Function to categorize photos based on filename or metadata
-const categorizePhoto = (filename: string): keyof typeof typeColors => {
-  const name = filename.toLowerCase();
-  if (name.includes('portrait') || name.includes('headshot')) return 'portrait';
-  if (name.includes('landscape') || name.includes('wide')) return 'landscape';
-  if (name.includes('adventure') || name.includes('outdoor')) return 'adventure';
-  if (name.includes('creative') || name.includes('art')) return 'creative';
-  if (name.includes('candid') || name.includes('natural')) return 'candid';
-  if (name.includes('lifestyle') || name.includes('life')) return 'lifestyle';
-  if (name.includes('artistic') || name.includes('abstract')) return 'artistic';
-  if (name.includes('professional') || name.includes('business')) return 'professional';
-  if (name.includes('nature') || name.includes('forest') || name.includes('tree')) return 'nature';
-  return 'casual';
-};
 
 const funnyPrompts = [
   "Glenn som rymdfärare på Mars",
@@ -64,6 +24,44 @@ const funnyPrompts = [
   "Glenn som surfaren på vågor"
 ];
 
+// Settings interface for image generation
+interface ImageSettings {
+  finetune_strength: number;
+  aspect_ratio: string;
+  steps: number;
+  guidance: number;
+  safety_tolerance: string;
+  seed?: number;
+}
+
+// Default settings
+const DEFAULT_SETTINGS: ImageSettings = {
+  finetune_strength: 1.2,
+  aspect_ratio: "1:1",
+  steps: 50,
+  guidance: 3.5,
+  safety_tolerance: "6",
+  seed: undefined
+};
+
+// Aspect ratio options
+const ASPECT_RATIOS = [
+  { value: "1:1", label: "Kvadrat (1:1)" },
+  { value: "16:9", label: "Bredformat (16:9)" },
+  { value: "9:16", label: "Stående (9:16)" },
+  { value: "4:3", label: "Klassisk (4:3)" },
+  { value: "3:4", label: "Stående klassisk (3:4)" },
+  { value: "21:9", label: "Ultrawide (21:9)" },
+  { value: "9:21", label: "Ultrahög (9:21)" }
+];
+
+// Safety tolerance options
+const SAFETY_OPTIONS = [
+  { value: "0", label: "Strikt filtrering" },
+  { value: "2", label: "Måttlig filtrering" },
+  { value: "6", label: "Tillåtande filtrering" }
+];
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -76,6 +74,11 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentFunnyPrompt, setCurrentFunnyPrompt] = useState("");
+  const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showGuidelines, setShowGuidelines] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<GlennPhoto | null>(null);
+  const [fullscreenIndex, setFullscreenIndex] = useState<number>(0);
 
   // Debug environment variables on component mount
   useEffect(() => {
@@ -114,6 +117,28 @@ export default function Home() {
     const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
     setCurrentFunnyPrompt(randomPrompt);
   }, []);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('glenn-image-settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+      }
+    } catch (error) {
+      console.error('Failed to load settings from localStorage:', error);
+    }
+  }, []);
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('glenn-image-settings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save settings to localStorage:', error);
+    }
+  }, [settings]);
 
   // Fetch photos from Supabase storage
   const fetchPhotos = async () => {
@@ -260,8 +285,19 @@ export default function Home() {
     };
   };
 
+  // Check if Glenn is mentioned in the prompt
+  const hasGlennInPrompt = (text: string): boolean => {
+    return text.toLowerCase().includes('glenn');
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
+    
+    // Validate that Glenn is mentioned in the prompt
+    if (!hasGlennInPrompt(prompt)) {
+      setGenerationError("Glenn måste vara med i beskrivningen för att fine-tuningen ska fungera! Lägg till 'Glenn' i din prompt.");
+      return;
+    }
     
     setIsGenerating(true);
     setGenerationError(null);
@@ -276,9 +312,24 @@ export default function Home() {
     
     try {
       console.log("🎨 Genererar bild med prompt:", prompt);
+      console.log("⚙️ Använder inställningar:", settings);
+      
+      // Prepare settings for API (exclude undefined values)
+      const apiSettings: Partial<FluxGenerationParams> = {
+        finetune_strength: settings.finetune_strength,
+        aspect_ratio: settings.aspect_ratio,
+        steps: settings.steps,
+        guidance: settings.guidance,
+        safety_tolerance: settings.safety_tolerance,
+      };
+      
+      // Only include seed if it's defined and not empty
+      if (settings.seed !== undefined && settings.seed !== null && !isNaN(settings.seed)) {
+        apiSettings.seed = settings.seed;
+      }
       
       // Generate, download and store in Supabase (all handled by generateFluxImage)
-      const supabaseUrl = await generateFluxImage(prompt);
+      const supabaseUrl = await generateFluxImage(prompt, apiSettings);
       
       console.log("✅ Image generation and storage complete:", supabaseUrl);
       
@@ -351,6 +402,119 @@ export default function Home() {
       }
       return newLikes;
     });
+  };
+
+  // Fullscreen image viewer functions
+  const openFullscreen = (photo: GlennPhoto, index: number) => {
+    setFullscreenImage(photo);
+    setFullscreenIndex(index);
+  };
+
+  const closeFullscreen = () => {
+    setFullscreenImage(null);
+  };
+
+  const navigateFullscreen = useCallback((direction: 'prev' | 'next') => {
+    if (!fullscreenImage || photos.length === 0) return;
+    
+    let newIndex = fullscreenIndex;
+    if (direction === 'prev') {
+      newIndex = fullscreenIndex > 0 ? fullscreenIndex - 1 : photos.length - 1;
+    } else {
+      newIndex = fullscreenIndex < photos.length - 1 ? fullscreenIndex + 1 : 0;
+    }
+    
+    setFullscreenIndex(newIndex);
+    setFullscreenImage(photos[newIndex]);
+  }, [fullscreenImage, fullscreenIndex, photos]);
+
+  // Handle keyboard navigation in fullscreen
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!fullscreenImage) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          closeFullscreen();
+          break;
+        case 'ArrowLeft':
+          navigateFullscreen('prev');
+          break;
+        case 'ArrowRight':
+          navigateFullscreen('next');
+          break;
+      }
+    };
+
+    if (fullscreenImage) {
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [fullscreenImage, fullscreenIndex, photos, navigateFullscreen]);
+
+  // Prevent body scroll when fullscreen is open
+  useEffect(() => {
+    if (fullscreenImage) {
+      document.body.classList.add('fullscreen-open');
+    } else {
+      document.body.classList.remove('fullscreen-open');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('fullscreen-open');
+    };
+  }, [fullscreenImage]);
+
+  // Copy image to clipboard
+  const copyImageToClipboard = async (imageUrl: string): Promise<void> => {
+    console.log('📋 Kopierar bild:', imageUrl);
+    
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        throw new Error('Clipboard API not supported');
+      }
+
+      // Try to fetch image with CORS
+      const response = await fetch(imageUrl, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // Make sure it's an image type
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('Invalid image type');
+      }
+      
+      // Copy to clipboard
+      const item = new ClipboardItem({ [blob.type]: blob });
+      await navigator.clipboard.write([item]);
+      
+      console.log('✅ Bild kopierad till urklipp!');
+      
+    } catch (error) {
+      console.error('❌ Kunde inte kopiera bild:', error);
+      
+      // Fallback - try to copy URL instead
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(imageUrl);
+          console.log('📋 Bildlänk kopierad till urklipp som fallback!');
+        } else {
+          throw new Error('Clipboard not available');
+        }
+      } catch (urlError) {
+        console.error('❌ Kunde inte kopiera bildlänk:', urlError);
+        alert('Kunde inte kopiera bild. Försök högerklicka och "Kopiera bild" istället.');
+      }
+    }
   };
 
 
@@ -426,14 +590,12 @@ export default function Home() {
 
         {/* Photo Grid */}
         {!isLoading && !error && photos.length > 0 && (
-          <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 gap-6 space-y-6 mb-12">
-                        {photos.map((photo) => {
-              const category = categorizePhoto(photo.name);
-              const swedishCategory = swedishCategories[category];
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mb-12 max-w-7xl mx-auto px-4 justify-items-center">
+            {photos.map((photo, index) => {
               return (
-                <Card key={photo.id} className="break-inside-avoid group overflow-hidden hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm hover:-translate-y-1">
+                <Card key={photo.id} className="w-full max-w-sm group overflow-hidden hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm hover:-translate-y-1">
                   <CardContent className="p-0 relative">
-                    <div className="relative overflow-hidden rounded-lg">
+                    <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => openFullscreen(photo, index)}>
                       <div className="relative aspect-[4/5]">
                         <Image
                           src={photo.url}
@@ -442,47 +604,55 @@ export default function Home() {
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
+                        
+                        {/* Fullscreen icon overlay */}
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
+                            <ZoomIn className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Hover overlay with actions */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                                  <div className="absolute bottom-4 left-4 right-4">
-                            <div className="flex items-center justify-between">
-                              <Badge className={`${typeColors[category]} border-0 shadow-lg`}>
-                                {swedishCategory}
-                              </Badge>
-                              <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                                onClick={() => toggleLike(photo.id)}
-                                title="Gilla denna Glenn"
-                              >
-                                <Heart className={`h-4 w-4 ${likedPhotos.has(photo.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                                title="Dela Glenn"
-                              >
-                                <Share2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                                onClick={() => window.open(photo.url, '_blank')}
-                                title="Ladda ner Glenn"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 mt-2 text-white/90 text-sm">
-                            <Heart className="h-3 w-3" />
-                            <span>{Math.floor(Math.random() * 50) + 20 + (likedPhotos.has(photo.id) ? 1 : 0)}</span>
+                        <div className="absolute bottom-4 right-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleLike(photo.id);
+                              }}
+                              title="Gilla denna Glenn"
+                            >
+                              <Heart className={`h-4 w-4 ${likedPhotos.has(photo.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyImageToClipboard(photo.url);
+                              }}
+                              title="Kopiera Glenn"
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(photo.url, '_blank');
+                              }}
+                              title="Ladda ner Glenn"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -495,20 +665,45 @@ export default function Home() {
         )}
 
         {/* Generation Section */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-white/20 dark:border-slate-700/50 p-6 shadow-2xl">
-          <div className="container mx-auto max-w-3xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative">
-                <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                {!isGenerating && (
-                  <div className="absolute inset-0 animate-ping">
-                    <Sparkles className="h-6 w-6 text-purple-600/50 dark:text-purple-400/50" />
-                  </div>
-                )}
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-white/20 dark:border-slate-700/50 shadow-2xl">
+          <div className="container mx-auto max-w-4xl p-4 sm:p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  {!isGenerating && (
+                    <div className="absolute inset-0 animate-ping">
+                      <Sparkles className="h-6 w-6 text-purple-600/50 dark:text-purple-400/50" />
+                    </div>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+                  Skapa en ny Glenn!
+                </h2>
               </div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-                Skapa en ny Glenn!
-              </h2>
+              
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowGuidelines(true)}
+                  variant="outline"
+                  size="sm"
+                  className="h-12 w-12 p-0 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                  title="Prompt-guide för bästa resultat"
+                >
+                  <HelpCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                </Button>
+                <Button
+                  onClick={() => setShowSettings(true)}
+                  variant="outline"
+                  size="sm"
+                  className="h-12 w-12 p-0 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                  title="Inställningar för bildgenerering"
+                >
+                  <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                </Button>
+              </div>
             </div>
 
             {/* Generation Status with Progress Bar */}
@@ -576,16 +771,17 @@ export default function Home() {
               </div>
             )}
             
-            <div className="flex gap-3">
+            {/* Input Section */}
+            <div className="flex gap-3 items-start">
               <div className="flex-1 relative">
                 <textarea
-                  placeholder={`Beskriv din Glenn... (t.ex. "${currentFunnyPrompt}")`}
+                  placeholder="Beskriv din Glenn..."
                   value={prompt}
                   onChange={handleTextareaChange}
                   onKeyPress={handleKeyPress}
                   disabled={isGenerating}
                   rows={1}
-                  className="min-h-[48px] w-full px-4 py-3 text-base bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 resize-none overflow-hidden outline-none transition-all duration-200"
+                  className="min-h-[48px] w-full px-4 py-3 text-base bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 resize-none overflow-hidden outline-none transition-all duration-200 leading-relaxed"
                   style={{ maxHeight: '120px' }}
                 />
                 {isGenerating && (
@@ -593,32 +789,457 @@ export default function Home() {
                 )}
               </div>
               
-
-              
               <Button 
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isGenerating}
-                className="h-12 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-12 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
               >
                 {isGenerating ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Skapar Glenn...</span>
+                    <span className="hidden sm:inline">Skapar Glenn...</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5" />
-                    <span>Generera Glenn</span>
+                    <span className="hidden sm:inline">Generera Glenn</span>
                   </div>
                 )}
               </Button>
             </div>
             
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 text-center">
-              ✨ Drivs av AI-magi • Tryck Enter eller klicka för att skapa din egen Glenn
+              ✨ Drivs av AI-magi • Tryck Enter för att skapa • Ex: &quot;{currentFunnyPrompt}&quot;
             </p>
           </div>
         </div>
+
+        {/* Fullscreen Image Viewer */}
+        {fullscreenImage && (
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center">
+            {/* Close button */}
+            <Button
+              onClick={closeFullscreen}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 z-10 h-10 w-10 p-0 text-white hover:bg-white/20 rounded-full"
+              title="Stäng (Escape)"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
+            {/* Navigation buttons */}
+            {photos.length > 1 && (
+              <>
+                <Button
+                  onClick={() => navigateFullscreen('prev')}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 p-0 text-white hover:bg-white/20 rounded-full"
+                  title="Föregående bild (←)"
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  onClick={() => navigateFullscreen('next')}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 p-0 text-white hover:bg-white/20 rounded-full"
+                  title="Nästa bild (→)"
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </>
+            )}
+
+            {/* Image container */}
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              <div className="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center">
+                <Image
+                  src={fullscreenImage.url}
+                  alt={`Glenn - ${fullscreenImage.name}`}
+                  width={2000}
+                  height={2000}
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                  priority
+                />
+              </div>
+            </div>
+
+            {/* Image info and actions overlay */}
+            <div className="absolute bottom-4 left-4 right-4 z-10">
+              <div className="bg-black/50 backdrop-blur-sm rounded-xl p-4 max-w-md mx-auto">
+                <div className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm opacity-90">
+                      {fullscreenIndex + 1} av {photos.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      onClick={() => toggleLike(fullscreenImage.id)}
+                      title="Gilla denna Glenn"
+                    >
+                      <Heart className={`h-4 w-4 ${likedPhotos.has(fullscreenImage.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      onClick={() => copyImageToClipboard(fullscreenImage.url)}
+                      title="Kopiera Glenn"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      onClick={() => window.open(fullscreenImage.url, '_blank')}
+                      title="Ladda ner Glenn"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-white/80 text-sm mt-2 truncate">
+                  {fullscreenImage.name}
+                </p>
+              </div>
+            </div>
+
+            {/* Click outside to close */}
+            <div 
+              className="absolute inset-0 -z-10" 
+              onClick={closeFullscreen}
+            />
+          </div>
+        )}
+
+        {/* Settings Dialog */}
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowSettings(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <Settings className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Inställningar för bildgenerering
+                  </h2>
+                </div>
+                <Button
+                  onClick={() => setShowSettings(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Settings Content */}
+              <div className="p-6 space-y-6">
+                {/* Finetune Strength */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Finetune-styrka
+                    </label>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
+                      {settings.finetune_strength}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={settings.finetune_strength}
+                    onChange={(e) => setSettings(prev => ({ ...prev, finetune_strength: parseFloat(e.target.value) }))}
+                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Styr hur starkt Glenn-konceptet visas. 0.0 = knappt synligt, 1.0 = standard (rekommenderad), 2.0 = maximalt starkt. 
+                    Öka om Glenn inte syns tillräckligt tydligt, minska om du ser artefakter.
+                  </p>
+                </div>
+
+                {/* Aspect Ratio */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Bildformat
+                  </label>
+                  <select
+                    value={settings.aspect_ratio}
+                    onChange={(e) => setSettings(prev => ({ ...prev, aspect_ratio: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {ASPECT_RATIOS.map(ratio => (
+                      <option key={ratio.value} value={ratio.value}>
+                        {ratio.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Välj bildformat för din Glenn. Kvadrat fungerar bra för porträtt, bredformat för landskapsbilder.
+                  </p>
+                </div>
+
+                {/* Steps */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Genereringssteg
+                    </label>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
+                      {settings.steps}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="50"
+                    step="1"
+                    value={settings.steps}
+                    onChange={(e) => setSettings(prev => ({ ...prev, steps: parseInt(e.target.value) }))}
+                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Antal inferenssteg. Fler steg = bättre kvalitet men tar längre tid. 20-30 är ofta tillräckligt, 50 ger högsta kvalitet.
+                  </p>
+                </div>
+
+                {/* Guidance */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Prompt-styrka
+                    </label>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
+                      {settings.guidance}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    step="0.5"
+                    value={settings.guidance}
+                    onChange={(e) => setSettings(prev => ({ ...prev, guidance: parseFloat(e.target.value) }))}
+                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Hur noga AI:n följer din beskrivning. Högre värden = följer texten striktare, lägre = mer kreativ frihet. 3.5 är en bra balans.
+                  </p>
+                </div>
+
+                {/* Safety Tolerance */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Säkerhetsfiltrering
+                  </label>
+                  <select
+                    value={settings.safety_tolerance}
+                    onChange={(e) => setSettings(prev => ({ ...prev, safety_tolerance: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {SAFETY_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Styr hur strikt innehållsfiltrering som används. Strikt = säkrast, Tillåtande = mest kreativ frihet.
+                  </p>
+                </div>
+
+                {/* Seed */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Slumptal (seed) - Valfritt
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Lämna tomt för slumpmässigt"
+                    value={settings.seed || ""}
+                    onChange={(e) => setSettings(prev => ({ 
+                      ...prev, 
+                      seed: e.target.value ? parseInt(e.target.value) : undefined 
+                    }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Använd samma seed för att få liknande resultat. Lämna tomt för helt nya variationer varje gång.
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  onClick={() => setSettings(DEFAULT_SETTINGS)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Återställ till standard
+                </Button>
+                <Button
+                  onClick={() => setShowSettings(false)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                >
+                  Stäng
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Prompt Guidelines Dialog */}
+        {showGuidelines && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowGuidelines(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Prompt-guide: Så skapar du bästa Glenn!
+                  </h2>
+                </div>
+                <Button
+                  onClick={() => setShowGuidelines(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Guidelines Content */}
+              <div className="p-6 space-y-6">
+                {/* Introduction */}
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-700">
+                  <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
+                    🎯 Viktigaste regeln
+                  </h3>
+                  <p className="text-purple-800 dark:text-purple-200">
+                    <strong>Inkludera alltid &quot;Glenn&quot; i din beskrivning!</strong> Glenn måste vara en del av prompten för att fine-tuningen ska fungera.
+                  </p>
+                </div>
+
+                {/* Best Practices */}
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                      <span className="text-purple-600 dark:text-purple-400">✨</span>
+                      Bästa tips för fantastiska Glenn-bilder
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div className="border-l-4 border-green-500 pl-4">
+                        <h4 className="font-semibold text-green-700 dark:text-green-300">Var specifik och tydlig</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          Använd exakta färgnamn, detaljerade beskrivningar och tydliga verb. Undvik vaga termer.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: &quot;Glenn i röd flanellskjorta&quot; istället för &quot;Glenn i snygg skjorta&quot;
+                        </p>
+                      </div>
+
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <h4 className="font-semibold text-blue-700 dark:text-blue-300">Börja enkelt, bygg sedan</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          Testa grundläggande ändringar först, lägg sedan till komplexitet. AI:n hanterar iterativ redigering mycket bra.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: Först &quot;Glenn som kock&quot;, sedan &quot;Glenn som kock som lagar pasta i italienskt kök&quot;
+                        </p>
+                      </div>
+
+                      <div className="border-l-4 border-orange-500 pl-4">
+                        <h4 className="font-semibold text-orange-700 dark:text-orange-300">Bevara medvetet</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          Säg uttryckligen vad som ska vara oförändrat. Använd fraser som &quot;behåll samma ansiktsdrag/komposition/belysning&quot;.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: &quot;Glenn som astronaut, behåll samma ansiktsuttryck och belysning&quot;
+                        </p>
+                      </div>
+
+                      <div className="border-l-4 border-purple-500 pl-4">
+                        <h4 className="font-semibold text-purple-700 dark:text-purple-300">Namnge personer direkt</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          Använd &quot;Glenn&quot; eller specifika beskrivningar istället för pronomen som &quot;han&quot;, &quot;den&quot; eller &quot;denna&quot;.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: &quot;Glenn med kort svart hår&quot; istället för &quot;han&quot;
+                        </p>
+                      </div>
+
+                      <div className="border-l-4 border-pink-500 pl-4">
+                        <h4 className="font-semibold text-pink-700 dark:text-pink-300">Kontrollera komposition explicit</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          När du ändrar bakgrund eller miljö, specificera &quot;behåll exakt kameravinkel, position och inramning&quot;.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: &quot;Glenn på stranden, behåll samma kameravinkel och position&quot;
+                        </p>
+                      </div>
+
+                      <div className="border-l-4 border-teal-500 pl-4">
+                        <h4 className="font-semibold text-teal-700 dark:text-teal-300">Välj verb noggrant</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          &quot;Transformera&quot; kan innebära total förändring, medan &quot;byt kläder&quot; eller &quot;ersätt bakgrund&quot; ger mer kontroll.
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                          Exempel: &quot;Byt Glenns t-shirt till kostym&quot; istället för &quot;transformera Glenn&quot;
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Examples */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                      <span className="text-purple-600 dark:text-purple-400">💡</span>
+                      Exempel på bra prompts
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <p className="font-medium text-green-600 dark:text-green-400">Bra:</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;Glenn som astronaut i vit rymddräkt på månens yta, behåll samma ansiktsuttryck&quot;</p>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <p className="font-medium text-green-600 dark:text-green-400">Bra:</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;Glenn som kock i vitt kockmössa och förkläde som lagar pasta i modernt kök&quot;</p>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <p className="font-medium text-red-600 dark:text-red-400">Undvik:</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;Han som något coolt&quot; (för vagt, ingen Glenn-referens)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end p-6 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  onClick={() => setShowGuidelines(false)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                >
+                  Förstått! Låt oss skapa Glenn!
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Bottom spacer to account for fixed input */}
         <div className="h-40" />
