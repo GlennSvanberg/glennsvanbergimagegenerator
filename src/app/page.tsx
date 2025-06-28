@@ -3,11 +3,12 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, ExternalLink } from "lucide-react";
+import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase, type GlennPhoto } from "@/lib/supabase";
+import { generateFluxImage } from "@/lib/flux";
 
 const typeColors = {
   portrait: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
@@ -66,6 +67,10 @@ const funnyPrompts = [
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState<string>("");
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [currentProgressStep, setCurrentProgressStep] = useState("");
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
   const [photos, setPhotos] = useState<GlennPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,8 +82,32 @@ export default function Home() {
     console.log('🔧 Environment Check:');
     console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
-    console.log('Expected URL should contain: zqwbcxhfwxuialdbdbxo.supabase.co');
+    console.log('Expected Supabase URL should contain: zqwbcxhfwxuialdbdbxo.supabase.co');
   }, []);
+
+  // Funny progress steps for Glenn generation
+  const funnyProgressSteps = [
+    "Odlar skägg åt Glenn...",
+    "Kalibrerar ögonavstånd...",
+    "Justerar hårlängd och volym...", 
+    "Programmerar Glenns charm...",
+    "Laddar ner svenska uttryck...",
+    "Optimerar leendekurva...",
+    "Installerar svenskhet.exe...",
+    "Renderar Glenn-attityd...",
+    "Kompilerar personlighet...",
+    "Syncroniserar med Värmland...",
+    "Applicerar nordisk cool...",
+    "Finjusterar ögonskratt...",
+    "Laddar Glenn-essensen...",
+    "Konfigurerar karisma...",
+    "Beräknar optimal pose...",
+    "Mixar humor och charm...",
+    "Polerar slutresultatet...",
+    "Kvalitetskontrollerar Glenn...",
+    "Sparar mästerverk...",
+    "Förbereder för debut..."
+  ];
 
   // Set random funny prompt as placeholder
   useEffect(() => {
@@ -164,27 +193,153 @@ export default function Home() {
     fetchPhotos();
   }, []);
 
+  // Progress simulation based on 10-second estimate with funny steps
+  const simulateProgress = (onComplete: () => void) => {
+    let progress = 0;
+    let isCompleted = false;
+    let lastStepIndex = -1;
+    
+    const updateProgress = () => {
+      if (isCompleted) return;
+      
+      if (progress < 20) {
+        // Slow start (0-20% in ~2 seconds)
+        progress += Math.random() * 3 + 1;
+      } else if (progress < 50) {
+        // Medium progress (20-50% in ~3 seconds)
+        progress += Math.random() * 2.5 + 1.5;
+      } else if (progress < 80) {
+        // Steady progress (50-80% in ~3 seconds)
+        progress += Math.random() * 2 + 1;
+      } else if (progress < 95) {
+        // Slower progress (80-95% in ~2 seconds)
+        progress += Math.random() * 1 + 0.5;
+      } else {
+        // Very slow progress (95-99% - wait for actual completion)
+        progress += Math.random() * 0.3 + 0.1;
+      }
+      
+      // Cap at 99% until actual completion
+      progress = Math.min(progress, 99);
+      setGenerationProgress(Math.round(progress));
+      
+      // Update funny step based on progress
+      const stepIndex = Math.floor((progress / 100) * funnyProgressSteps.length);
+      if (stepIndex !== lastStepIndex && stepIndex < funnyProgressSteps.length) {
+        setCurrentProgressStep(funnyProgressSteps[stepIndex]);
+        lastStepIndex = stepIndex;
+      }
+    };
+    
+    // Start with first step
+    setCurrentProgressStep(funnyProgressSteps[0]);
+    
+    const intervalId = setInterval(updateProgress, 200); // Slightly slower updates for 10-second timing
+    
+    // Return function to complete progress
+    return () => {
+      isCompleted = true;
+      clearInterval(intervalId);
+      
+      // Show final step
+      setCurrentProgressStep("🎉 Glenn är klar!");
+      
+      // Animate to 100%
+      let currentProgress = progress;
+      const completeInterval = setInterval(() => {
+        currentProgress += 5;
+        if (currentProgress >= 100) {
+          currentProgress = 100;
+          setGenerationProgress(100);
+          clearInterval(completeInterval);
+          setTimeout(onComplete, 200);
+        } else {
+          setGenerationProgress(Math.round(currentProgress));
+        }
+      }, 50);
+    };
+  };
+
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isGenerating) return;
     
     setIsGenerating(true);
-    console.log("Genererar bild med prompt:", prompt);
+    setGenerationError(null);
+    setGenerationStatus("Skapar Glenn med AI-magi...");
+    setGenerationProgress(0);
+    setCurrentProgressStep("");
     
-    // Simulate generation delay
-    setTimeout(() => {
-      setIsGenerating(false);
+    // Start progress simulation
+    const completeProgress = simulateProgress(() => {
+      setGenerationStatus("🎉 Ny Glenn skapad!");
+    });
+    
+    try {
+      console.log("🎨 Genererar bild med prompt:", prompt);
+      
+      // Generate, download and store in Supabase (all handled by generateFluxImage)
+      const supabaseUrl = await generateFluxImage(prompt);
+      
+      console.log("✅ Image generation and storage complete:", supabaseUrl);
+      
+      // Complete the progress bar
+      completeProgress();
+      
+      // Refresh photo list to show new image
+      await fetchPhotos();
+      
+      // Clear form and set new random prompt
       setPrompt("");
-      // Set new random prompt
       const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
       setCurrentFunnyPrompt(randomPrompt);
-    }, 3000);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setGenerationStatus("");
+        setGenerationProgress(0);
+        setCurrentProgressStep("");
+      }, 3000);
+      
+    } catch (err) {
+      console.error("💥 Generation error:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Okänt fel uppstod';
+      setGenerationError(errorMessage);
+      setGenerationStatus("");
+      setGenerationProgress(0);
+      setCurrentProgressStep("");
+      // Stop progress simulation on error
+      completeProgress();
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isGenerating) {
+    if (e.key === 'Enter' && !e.shiftKey && !isGenerating) {
+      e.preventDefault(); // Prevent new line in textarea
       handleGenerate();
     }
   };
+
+  // Auto-resize textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+    
+    // Auto-resize textarea
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`; // Max height of ~3 lines
+  };
+
+  // Reset textarea height when prompt is cleared
+  useEffect(() => {
+    if (!prompt) {
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.style.height = '48px'; // Reset to minimum height
+      }
+    }
+  }, [prompt]);
 
   const toggleLike = (photoId: string) => {
     setLikedPhotos(prev => {
@@ -198,12 +353,7 @@ export default function Home() {
     });
   };
 
-  const getRandomFunnyPrompt = () => {
-    const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
-    setPrompt(randomPrompt);
-  };
 
-  const totalLikes = photos.length * 35 + likedPhotos.size;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950">
@@ -228,38 +378,8 @@ export default function Home() {
               <p className="text-slate-600 dark:text-slate-400 font-medium">Alla heter inte Glenn... men jag gör det!</p>
             </div>
           </div>
-          
-          {/* Fun stats and link */}
-          <div className="flex justify-center mt-4 gap-6 text-sm text-slate-500 dark:text-slate-400 flex-wrap items-center">
-            <span>{photos.length} Bilder av Glenn</span>
-            <span>•</span>
-            <span>{totalLikes} Hjärtan</span>
-            <span>•</span>
-            <span>AI-Genererat Kaos</span>
-            <span>•</span>
-            <a 
-              href="https://allaheterglenn.se" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
-            >
-              Alla Heter Glenn <ExternalLink className="h-3 w-3" />
-            </a>
-            {!isLoading && (
-              <>
-                <span>•</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={fetchPhotos}
-                  className="h-auto p-0 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                >
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Uppdatera
-                </Button>
-              </>
-            )}
-          </div>
+            
+
         </div>
       </header>
 
@@ -380,39 +500,100 @@ export default function Home() {
             <div className="flex items-center gap-3 mb-4">
               <div className="relative">
                 <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                <div className="absolute inset-0 animate-ping">
-                  <Sparkles className="h-6 w-6 text-purple-600/50 dark:text-purple-400/50" />
-                </div>
+                {!isGenerating && (
+                  <div className="absolute inset-0 animate-ping">
+                    <Sparkles className="h-6 w-6 text-purple-600/50 dark:text-purple-400/50" />
+                  </div>
+                )}
               </div>
               <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
                 Skapa en ny Glenn!
               </h2>
             </div>
+
+            {/* Generation Status with Progress Bar */}
+            {(isGenerating || generationStatus) && (
+              <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center gap-2 mb-3">
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-purple-600 dark:text-purple-400" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  )}
+                  <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                    {generationStatus}
+                  </span>
+                  {isGenerating && (
+                    <span className="text-xs text-purple-600 dark:text-purple-400 ml-auto">
+                      {generationProgress}%
+                    </span>
+                  )}
+                </div>
+                
+                {/* Progress Bar */}
+                {isGenerating && (
+                  <div className="w-full bg-purple-200 dark:bg-purple-800 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div 
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                      style={{ width: `${generationProgress}%` }}
+                    >
+                      {/* Animated shimmer effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Funny progress step indicator */}
+                {isGenerating && currentProgressStep && (
+                  <div className="text-center mt-3">
+                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300 italic">
+                      {currentProgressStep}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Generation Error */}
+            {generationError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                      {generationError}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setGenerationError(null)}
+                    className="h-6 w-6 p-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <div className="flex gap-3">
               <div className="flex-1 relative">
-                <Input
+                <textarea
                   placeholder={`Beskriv din Glenn... (t.ex. "${currentFunnyPrompt}")`}
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={handleTextareaChange}
                   onKeyPress={handleKeyPress}
                   disabled={isGenerating}
-                  className="h-12 px-4 text-base bg-white/70 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 rounded-xl"
+                  rows={1}
+                  className="min-h-[48px] w-full px-4 py-3 text-base bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 resize-none overflow-hidden outline-none transition-all duration-200"
+                  style={{ maxHeight: '120px' }}
                 />
                 {isGenerating && (
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl animate-pulse" />
                 )}
               </div>
               
-              <Button 
-                onClick={getRandomFunnyPrompt}
-                variant="outline"
-                className="h-12 px-4 text-sm border-purple-200 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl"
-                disabled={isGenerating}
-                title="Få en rolig idé"
-              >
-                🎲
-              </Button>
+
               
               <Button 
                 onClick={handleGenerate}
@@ -421,8 +602,8 @@ export default function Home() {
               >
                 {isGenerating ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <span>Skapar magi...</span>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Skapar Glenn...</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">

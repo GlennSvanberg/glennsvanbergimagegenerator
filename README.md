@@ -1,24 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Glenn Svanberg - AI Image Generator
+
+This is a Next.js application that generates AI images of Glenn Svanberg using the Flux API and stores them in Supabase.
+
+## Environment Setup
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Black Forest Labs (Flux) API Configuration (Server-side only)
+# Get your API key from: https://api.bfl.ml/
+BFL_API_KEY=your_bfl_api_key_here
+```
 
 ## Getting Started
 
-First, run the development server:
+First, install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
 # or
-yarn dev
+yarn install && yarn dev
 # or
-pnpm dev
-# or
-bun dev
+pnpm install && pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- 🎨 AI-powered image generation using Flux API with Glenn Svanberg finetune
+- 📸 Photo gallery with automatic categorization
+- ☁️ Supabase storage integration
+- 💜 Like and share functionality
+- 📱 Responsive design with beautiful UI
+- ⚡ Real-time polling for image generation status
+
+## How it Works
+
+1. Enter a creative prompt describing Glenn in different scenarios
+2. The frontend sends the request to our secure API route
+3. The server-side API calls Flux API with the Glenn Svanberg finetune model
+4. Polls every 500ms for generation completion on the server
+5. Downloads and uploads the generated image to Supabase storage
+6. Displays the new Glenn image in the gallery
+
+## Security
+
+- The BFL API key is kept secure on the server side and never exposed to the client
+- All Flux API calls are made through our own secure API routes
+- Only the necessary data is passed between client and server
 
 ## Learn More
 
