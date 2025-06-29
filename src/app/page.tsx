@@ -530,17 +530,17 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
         <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center gap-4">
-            <div className="relative">
-              <Camera className="h-10 w-10 text-primary" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" />
-            </div>
-            <div className="text-center">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="relative">
+                <Camera className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" />
+              </div>
               <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-purple-700 to-slate-900 dark:from-white dark:via-purple-300 dark:to-white bg-clip-text text-transparent">
-                Glenn Svanberg
+                Glenn generator
               </h1>
-              <p className="text-slate-600 dark:text-slate-400 font-medium">Alla heter inte Glenn... men jag gör det!</p>
             </div>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">för dig som vill ha lite mer Glenn</p>
           </div>
             
 
@@ -679,7 +679,7 @@ export default function Home() {
                   )}
                 </div>
                 <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-                  Skapa en ny Glenn!
+                  Skapa din egen Glenn!
                 </h2>
               </div>
               
@@ -854,14 +854,14 @@ export default function Home() {
 
             {/* Image container */}
             <div className="relative w-full h-full flex items-center justify-center p-4">
-              <div className="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center" style={{ maxWidth: 'calc(100vw - 2rem)', maxHeight: 'calc(100vh - 2rem)' }}>
                 <Image
                   src={fullscreenImage.url}
                   alt={`Glenn - ${fullscreenImage.name}`}
-                  width={2000}
-                  height={2000}
-                  className="max-w-full max-h-full object-contain rounded-lg"
+                  fill
+                  className="object-contain rounded-lg"
                   priority
+                  sizes="100vw"
                 />
               </div>
             </div>
