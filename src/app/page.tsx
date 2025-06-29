@@ -545,40 +545,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Glenn Center Section */}
-      <section className="bg-gradient-to-r from-purple-50/50 via-pink-50/50 to-orange-50/50 dark:from-purple-950/20 dark:via-pink-950/20 dark:to-orange-950/20 border-b border-purple-100/50 dark:border-purple-800/20">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Globe className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" />
-              </div>
-              <span className="font-bold text-lg bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
-                Glenn Center
-              </span>
-              <span className="text-xs bg-gradient-to-r from-pink-500 to-orange-500 text-white px-2 py-0.5 rounded-full">
-                ✨ Kolla in!
-              </span>
-            </div>
-            
-            <span className="text-slate-600 dark:text-slate-400 text-sm hidden sm:block">
-              Upptäck mina andra Glenn-sidor!
-            </span>
-            
-            <Button
-              asChild
-              size="sm"
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300"
-            >
-              <a href="/center" className="flex items-center gap-2">
-                <span>Utforska</span>
-                <Sparkles className="h-3 w-3" />
-              </a>
-            </Button>
-          </div>
-        </div>
-      </section>
+
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12 relative">
@@ -1277,6 +1244,30 @@ export default function Home() {
         {/* Bottom spacer to account for fixed input */}
         <div className="h-40" />
       </main>
+
+      {/* Floating Glenn Center Link */}
+      <div className="fixed top-36 right-6 z-40">
+        <div className="relative">
+          {/* Pulsing background effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl animate-pulse opacity-20 scale-110"></div>
+          
+          <Button
+            asChild
+            className="relative bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl h-14 px-6 group"
+          >
+            <a href="/center" className="flex items-center gap-3" title="Besök Glenn Center">
+              <div className="relative">
+                <Globe className="h-5 w-5" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-bounce" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">Glenn Center</span>
+                <span className="text-xs opacity-90">Upptäck mer →</span>
+              </div>
+            </a>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
