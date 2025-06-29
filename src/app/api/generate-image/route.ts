@@ -20,8 +20,8 @@ interface FluxGenerationResponse {
 
 // Default configuration
 const DEFAULT_FLUX_PARAMS = {
-  finetune_id: "d0f162b7-0ea6-4a0a-82e5-f1a85e16bfd4",
-  finetune_strength: 1.2,
+  finetune_id: "93fc5a03-c47f-4ea5-81e8-1470640be965",
+  finetune_strength: 1.4,
   aspect_ratio: "1:1",
   steps: 50,
   guidance: 3.5,
