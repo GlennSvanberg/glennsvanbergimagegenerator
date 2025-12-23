@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle, Settings, X, ChevronLeft, ChevronRight, ZoomIn, HelpCircle, Globe } from "lucide-react";
-import { supabase, type GlennPhoto } from "@/lib/supabase";
+import { getSupabaseClient, type GlennPhoto } from "@/lib/supabase";
 import { generateFluxImage, type FluxGenerationParams } from "@/lib/flux";
 
 
@@ -145,6 +145,13 @@ export default function Home() {
     try {
       setIsLoading(true);
       setError(null);
+
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        setPhotos([]);
+        setError("Saknar Supabase-konfiguration (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY).");
+        return;
+      }
 
       console.log('🔍 Fetching photos from Supabase...');
       console.log('📋 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -529,15 +536,15 @@ export default function Home() {
 
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-4 sm:py-8">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="relative">
                 <Camera className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" />
               </div>
-              <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-purple-700 to-slate-900 dark:from-white dark:via-purple-300 dark:to-white bg-clip-text text-transparent">
-                Glenn generator
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-purple-700 to-slate-900 dark:from-white dark:via-purple-300 dark:to-white bg-clip-text text-transparent">
+                Glennerator
               </h1>
             </div>
             <p className="text-slate-600 dark:text-slate-400 font-medium">för dig som vill ha lite mer Glenn</p>
@@ -548,7 +555,7 @@ export default function Home() {
 
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-12 relative">
+      <main className="container mx-auto px-4 py-6 sm:py-12 relative">
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-20">
@@ -590,7 +597,7 @@ export default function Home() {
 
         {/* Photo Grid */}
         {!isLoading && !error && photos.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mb-12 max-w-7xl mx-auto px-4 justify-items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mb-12 max-w-7xl mx-auto justify-items-center">
             {photos.map((photo, index) => {
               return (
                 <Card key={photo.id} className="w-full max-w-sm group overflow-hidden hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm hover:-translate-y-1">
@@ -665,7 +672,7 @@ export default function Home() {
         )}
 
         {/* Generation Section */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-white/20 dark:border-slate-700/50 shadow-2xl">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-white/20 dark:border-slate-700/50 shadow-2xl pb-[env(safe-area-inset-bottom)]">
           <div className="container mx-auto max-w-4xl p-4 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -1246,27 +1253,17 @@ export default function Home() {
       </main>
 
       {/* Floating Glenn Center Link */}
-      <div className="fixed top-36 right-6 z-40">
-        <div className="relative">
-          {/* Pulsing background effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl animate-pulse opacity-20 scale-110"></div>
-          
-          <Button
-            asChild
-            className="relative bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl h-14 px-6 group"
-          >
-            <a href="/center" className="flex items-center gap-3" title="Besök Glenn Center">
-              <div className="relative">
-                <Globe className="h-5 w-5" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-bounce" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold">Glenn Center</span>
-                <span className="text-xs opacity-90">Upptäck mer →</span>
-              </div>
-            </a>
-          </Button>
-        </div>
+      <div className="fixed top-28 right-4 z-40 hidden lg:block">
+        <Button
+          asChild
+          variant="outline"
+          className="bg-white/80 dark:bg-slate-900/70 backdrop-blur border border-slate-200/70 dark:border-slate-700/70 text-slate-800 dark:text-slate-100 shadow-sm hover:shadow-md transition-all duration-200 rounded-xl h-10 px-3"
+        >
+          <a href="/center" className="flex items-center gap-2" title="Besök Glenn Center">
+            <Globe className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+            <span className="text-sm font-semibold">Glenn Center</span>
+          </a>
+        </Button>
       </div>
     </div>
   );

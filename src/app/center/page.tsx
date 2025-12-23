@@ -8,8 +8,8 @@ import { Camera, ExternalLink, Globe, Palette, ChefHat, MapPin } from "lucide-re
 // Site data
 const sites = [
   {
-    id: "glenn-generator",
-    name: "Glenn Generator",
+    id: "glennerator",
+    name: "Glennerator",
     url: "/",
     description: "Skapa fantastiska AI-bilder av Glenn med avancerad bildgenerering",
     thumbnail: "/pages/glenngenerator.png",
@@ -70,14 +70,14 @@ export default function PagesPage() {
 
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-4 sm:py-8">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="relative">
                 <Globe className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" />
               </div>
-              <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-purple-700 to-slate-900 dark:from-white dark:via-purple-300 dark:to-white bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-purple-700 to-slate-900 dark:from-white dark:via-purple-300 dark:to-white bg-clip-text text-transparent">
                 Glenn Center
               </h1>
             </div>
@@ -89,7 +89,7 @@ export default function PagesPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-12 relative">
+      <main className="container mx-auto px-4 py-6 sm:py-12 relative">
         {/* Introduction */}
         <div className="text-center mb-12 max-w-3xl mx-auto">
           <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
