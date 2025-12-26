@@ -1,47 +1,249 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export interface FluxGenerationParams {
+import { createClient } from '@supabase/supabase-js';
+
+interface GenerateRequestBody {
   prompt: string;
-  finetune_id?: string;
-  finetune_strength?: number;
-  aspect_ratio?: string;
-  steps?: number;
-  guidance?: number;
-  safety_tolerance?: string;
-  seed?: number;
-  endpoint?: string;
-  api_base_url?: string;
 }
 
-interface FluxGenerationResponse {
-  id: string;
-  polling_url?: string;
+type GeminiInlineDataPart =
+  | { inlineData: { mimeType?: string; data: string } }
+  | { inline_data: { mime_type?: string; data: string } };
+
+interface GeminiGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<
+        | { text?: string }
+        | GeminiInlineDataPart
+        | Record<string, unknown>
+      >;
+    };
+  }>;
+  error?: { message?: string };
 }
 
-// Default configuration
-const DEFAULT_FLUX_PARAMS = {
-  finetune_id: "93fc5a03-c47f-4ea5-81e8-1470640be965",
-  finetune_strength: 1.4,
-  aspect_ratio: "1:1",
-  steps: 50,
-  guidance: 3.5,
-  safety_tolerance: "6",
-  endpoint: "flux-pro-1.1-ultra-finetuned",
-  api_base_url: "https://api.eu1.bfl.ai/v1/"
-};
+function getSupabaseServerClient() {
+  // Prefer server-only env vars if present, but keep backward compatibility.
+  const supabaseUrl =
+    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) throw new Error('SUPABASE_URL is required.');
+  if (!supabaseKey) throw new Error('SUPABASE_ANON_KEY is required.');
+
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+function generateImageFilename(prompt: string): string {
+  const cleanPrompt = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 50);
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `glenn_${cleanPrompt}_${timestamp}.png`;
+}
+
+async function pickRandomGlennReferenceImage(): Promise<{
+  path: string;
+  bytes: Uint8Array;
+  mimeType: string;
+}> {
+  const supabase = getSupabaseServerClient();
+  const bucket = process.env.GLENN_REFERENCE_BUCKET ?? 'glennsvanberg';
+  const folder = (process.env.GLENN_REFERENCE_FOLDER ?? 'glenn-reference').replace(
+    /^\/+|\/+$/g,
+    ''
+  );
+
+  const { data: files, error: listError } = await supabase.storage
+    .from(bucket)
+    .list(folder, { limit: 200 });
+
+  if (listError) {
+    throw new Error(
+      `Failed to list Glenn reference images in Supabase: ${listError.message}`
+    );
+  }
+
+  const imageFiles =
+    files?.filter((f) => f.name.match(/\.(jpg|jpeg|png|webp)$/i)) ?? [];
+
+  if (imageFiles.length === 0) {
+    throw new Error(
+      `No Glenn reference images found. Add images to Supabase bucket "${bucket}" in folder "${folder}/".`
+    );
+  }
+
+  const chosen = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+  const path = `${folder}/${chosen.name}`;
+
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from(bucket)
+    .download(path);
+
+  if (downloadError || !blob) {
+    throw new Error(
+      `Failed to download Glenn reference image "${path}": ${
+        downloadError?.message ?? 'Unknown error'
+      }`
+    );
+  }
+
+  const arrayBuffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+
+  const lower = chosen.name.toLowerCase();
+  const mimeType =
+    lower.endsWith('.png')
+      ? 'image/png'
+      : lower.endsWith('.webp')
+        ? 'image/webp'
+        : 'image/jpeg';
+
+  return { path, bytes, mimeType };
+}
+
+function buildHiddenPrompt(userPrompt: string): string {
+  const glennDescription =
+    'The person is Glenn Svanberg: a Swedish man (adult), friendly expression, Scandinavian features, natural-looking skin texture, realistic proportions.';
+
+  // User should never see this rewritten prompt; we only use it server-side.
+  // The model receives a real Glenn reference photo + this instruction.
+  return [
+    'You are editing a real photo.',
+    'Use the provided reference image as the base image.',
+    'Make the person in the image look like Glenn Svanberg and keep the same identity across the edit.',
+    glennDescription,
+    'Apply the user’s request below while preserving face structure, age, pose as much as possible, and photorealism.',
+    'Avoid changing background unless requested.',
+    '',
+    `User request: ${userPrompt.trim()}`,
+  ].join('\n');
+}
+
+function extractFirstImageBase64(
+  response: GeminiGenerateContentResponse
+): { base64: string; mimeType?: string } | null {
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    if (typeof part !== 'object' || part === null) continue;
+
+    const inlineData =
+      'inlineData' in part
+        ? (part as { inlineData?: { data?: string; mimeType?: string } })
+            .inlineData
+        : undefined;
+    if (inlineData?.data) return { base64: inlineData.data, mimeType: inlineData.mimeType };
+
+    const inline_data =
+      'inline_data' in part
+        ? (part as { inline_data?: { data?: string; mime_type?: string } })
+            .inline_data
+        : undefined;
+    if (inline_data?.data)
+      return { base64: inline_data.data, mimeType: inline_data.mime_type };
+  }
+  return null;
+}
+
+async function generateWithGemini({
+  prompt,
+  referenceImageBytes,
+  referenceImageMimeType,
+}: {
+  prompt: string;
+  referenceImageBytes: Uint8Array;
+  referenceImageMimeType: string;
+}): Promise<{ imageBytes: Uint8Array; mimeType: string }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not found in environment variables');
+  }
+
+  const preferredModel = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash';
+  const fallbackModels = [
+    preferredModel,
+    // Practical fallbacks for Gemini image generation/editing APIs.
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash',
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+  const referenceBase64 = Buffer.from(referenceImageBytes).toString('base64');
+  const hiddenPrompt = buildHiddenPrompt(prompt);
+
+  let lastError: string | undefined;
+
+  for (const model of fallbackModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const body = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: hiddenPrompt },
+            {
+              inlineData: {
+                mimeType: referenceImageMimeType,
+                data: referenceBase64,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        // Many Gemini image-capable models accept this; ignored if unsupported.
+        responseModalities: ['IMAGE', 'TEXT'],
+        temperature: 0.4,
+      },
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const text = await resp.text();
+    if (!resp.ok) {
+      lastError = `Gemini request failed for model "${model}": ${resp.status} ${text}`;
+      continue;
+    }
+
+    let parsed: GeminiGenerateContentResponse;
+    try {
+      parsed = JSON.parse(text) as GeminiGenerateContentResponse;
+    } catch {
+      lastError = `Gemini returned non-JSON for model "${model}".`;
+      continue;
+    }
+
+    const imagePart = extractFirstImageBase64(parsed);
+    if (!imagePart) {
+      lastError =
+        parsed.error?.message ??
+        `Gemini response did not include an inline image for model "${model}".`;
+      continue;
+    }
+
+    const outBytes = Uint8Array.from(Buffer.from(imagePart.base64, 'base64'));
+    const outMime = imagePart.mimeType ?? 'image/png';
+    return { imageBytes: outBytes, mimeType: outMime };
+  }
+
+  throw new Error(lastError ?? 'Gemini image generation failed.');
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.BFL_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'BFL_API_KEY not found in environment variables' },
-        { status: 500 }
-      );
-    }
-
-    const body = await request.json();
-    const { prompt, ...params } = body as FluxGenerationParams;
+    const body = (await request.json()) as GenerateRequestBody;
+    const { prompt } = body;
 
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return NextResponse.json(
@@ -50,72 +252,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = { ...DEFAULT_FLUX_PARAMS, ...params, prompt: prompt.trim() };
+    console.log('🎨 Server: Generating Glenn image with Gemini...');
 
-    // Prepare the request payload
-    interface PayloadType {
-      prompt: string;
-      finetune_id?: string;
-      finetune_strength?: number;
-      aspect_ratio?: string;
-      steps?: number;
-      guidance?: number;
-      safety_tolerance?: string;
-      seed?: number;
-    }
-    
-    const payload: PayloadType = {
-      prompt: config.prompt,
-      finetune_id: config.finetune_id,
-      finetune_strength: config.finetune_strength,
-      aspect_ratio: config.aspect_ratio,
-      steps: config.steps,
-      guidance: config.guidance,
-      safety_tolerance: config.safety_tolerance,
-    };
+    // 1) Pick a random Glenn reference image from Supabase (folder)
+    const reference = await pickRandomGlennReferenceImage();
+    console.log('🧑‍🦰 Using Glenn reference:', reference.path);
 
-    // Add seed if specified
-    if (config.seed !== undefined) {
-      payload.seed = config.seed;
-    }
-
-    console.log('🎨 Server: Generating image with Flux API...');
-    console.log('📝 Prompt:', config.prompt);
-    console.log('🔧 Finetune ID:', config.finetune_id);
-    console.log('💪 Finetune strength:', config.finetune_strength);
-
-    // Submit the generation request
-    const url = `${config.api_base_url}${config.endpoint}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'x-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+    // 2) Generate edited image with Gemini (prompt rewritten under the hood)
+    const generated = await generateWithGemini({
+      prompt: prompt.trim(),
+      referenceImageBytes: reference.bytes,
+      referenceImageMimeType: reference.mimeType,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Flux API error:', response.status, errorText);
-      return NextResponse.json(
-        { error: `Generation request failed: ${response.status} - ${errorText}` },
-        { status: response.status }
-      );
+    // 3) Upload to Supabase
+    const supabase = getSupabaseServerClient();
+    const outBucket = process.env.GENERATED_IMAGES_BUCKET ?? 'glennsvanberg';
+    const filename = generateImageFilename(prompt.trim());
+    const imageBlob = new Blob([generated.imageBytes], { type: generated.mimeType });
+
+    const { error: uploadError } = await supabase.storage
+      .from(outBucket)
+      .upload(filename, imageBlob, {
+        contentType: generated.mimeType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(`Failed to upload generated image to Supabase: ${uploadError.message}`);
     }
 
-    const requestData: FluxGenerationResponse = await response.json();
-    console.log('✅ Generation request submitted, ID:', requestData.id);
-    
-    const pollingUrl = requestData.polling_url || `${config.api_base_url}get_result`;
-    console.log('🔄 Polling URL to return:', pollingUrl);
+    const { data: publicUrlData } = supabase.storage
+      .from(outBucket)
+      .getPublicUrl(filename);
 
     return NextResponse.json({
       success: true,
-      requestId: requestData.id,
-      pollingUrl: pollingUrl
+      supabaseUrl: publicUrlData.publicUrl,
+      filename,
     });
 
   } catch (error) {

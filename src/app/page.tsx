@@ -5,9 +5,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle, Settings, X, ChevronLeft, ChevronRight, ZoomIn, HelpCircle, Globe } from "lucide-react";
+import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle, X, ChevronLeft, ChevronRight, ZoomIn, HelpCircle, Globe } from "lucide-react";
 import { getSupabaseClient, type GlennPhoto } from "@/lib/supabase";
-import { generateFluxImage, type FluxGenerationParams } from "@/lib/flux";
+import { generateGlennImage } from "@/lib/gemini";
 
 
 
@@ -24,44 +24,6 @@ const funnyPrompts = [
   "Glenn som surfaren på vågor"
 ];
 
-// Settings interface for image generation
-interface ImageSettings {
-  finetune_strength: number;
-  aspect_ratio: string;
-  steps: number;
-  guidance: number;
-  safety_tolerance: string;
-  seed?: number;
-}
-
-// Default settings
-const DEFAULT_SETTINGS: ImageSettings = {
-  finetune_strength: 1.2,
-  aspect_ratio: "1:1",
-  steps: 50,
-  guidance: 3.5,
-  safety_tolerance: "6",
-  seed: undefined
-};
-
-// Aspect ratio options
-const ASPECT_RATIOS = [
-  { value: "1:1", label: "Kvadrat (1:1)" },
-  { value: "16:9", label: "Bredformat (16:9)" },
-  { value: "9:16", label: "Stående (9:16)" },
-  { value: "4:3", label: "Klassisk (4:3)" },
-  { value: "3:4", label: "Stående klassisk (3:4)" },
-  { value: "21:9", label: "Ultrawide (21:9)" },
-  { value: "9:21", label: "Ultrahög (9:21)" }
-];
-
-// Safety tolerance options
-const SAFETY_OPTIONS = [
-  { value: "0", label: "Strikt filtrering" },
-  { value: "2", label: "Måttlig filtrering" },
-  { value: "6", label: "Tillåtande filtrering" }
-];
-
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,8 +36,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentFunnyPrompt, setCurrentFunnyPrompt] = useState("");
-  const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
-  const [showSettings, setShowSettings] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<GlennPhoto | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number>(0);
@@ -117,28 +77,6 @@ export default function Home() {
     const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
     setCurrentFunnyPrompt(randomPrompt);
   }, []);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem('glenn-image-settings');
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      }
-    } catch (error) {
-      console.error('Failed to load settings from localStorage:', error);
-    }
-  }, []);
-
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('glenn-image-settings', JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save settings to localStorage:', error);
-    }
-  }, [settings]);
 
   // Fetch photos from Supabase storage
   const fetchPhotos = async () => {
@@ -292,20 +230,9 @@ export default function Home() {
     };
   };
 
-  // Check if Glenn is mentioned in the prompt
-  const hasGlennInPrompt = (text: string): boolean => {
-    return text.toLowerCase().includes('glenn');
-  };
-
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
-    
-    // Validate that Glenn is mentioned in the prompt
-    if (!hasGlennInPrompt(prompt)) {
-      setGenerationError("Glenn måste vara med i beskrivningen för att fine-tuningen ska fungera! Lägg till 'Glenn' i din prompt.");
-      return;
-    }
-    
+
     setIsGenerating(true);
     setGenerationError(null);
     setGenerationStatus("Skapar Glenn med AI-magi...");
@@ -319,24 +246,9 @@ export default function Home() {
     
     try {
       console.log("🎨 Genererar bild med prompt:", prompt);
-      console.log("⚙️ Använder inställningar:", settings);
-      
-      // Prepare settings for API (exclude undefined values)
-      const apiSettings: Partial<FluxGenerationParams> = {
-        finetune_strength: settings.finetune_strength,
-        aspect_ratio: settings.aspect_ratio,
-        steps: settings.steps,
-        guidance: settings.guidance,
-        safety_tolerance: settings.safety_tolerance,
-      };
-      
-      // Only include seed if it's defined and not empty
-      if (settings.seed !== undefined && settings.seed !== null && !isNaN(settings.seed)) {
-        apiSettings.seed = settings.seed;
-      }
-      
-      // Generate, download and store in Supabase (all handled by generateFluxImage)
-      const supabaseUrl = await generateFluxImage(prompt, apiSettings);
+
+      // Generate and store in Supabase (server injects Glenn reference image + rewrites prompt)
+      const supabaseUrl = await generateGlennImage(prompt);
       
       console.log("✅ Image generation and storage complete:", supabaseUrl);
       
@@ -701,15 +613,6 @@ export default function Home() {
                 >
                   <HelpCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                 </Button>
-                <Button
-                  onClick={() => setShowSettings(true)}
-                  variant="outline"
-                  size="sm"
-                  className="h-12 w-12 p-0 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors"
-                  title="Inställningar för bildgenerering"
-                >
-                  <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                </Button>
               </div>
             </div>
 
@@ -782,7 +685,7 @@ export default function Home() {
             <div className="flex gap-3 items-start">
               <div className="flex-1 relative">
                 <textarea
-                  placeholder="Beskriv din Glenn..."
+                  placeholder="Beskriv vad du vill att Glenn ska vara eller göra..."
                   value={prompt}
                   onChange={handleTextareaChange}
                   onKeyPress={handleKeyPress}
@@ -926,186 +829,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Settings Dialog */}
-        {showSettings && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowSettings(false)}>
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                  <Settings className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Inställningar för bildgenerering
-                  </h2>
-                </div>
-                <Button
-                  onClick={() => setShowSettings(false)}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Settings Content */}
-              <div className="p-6 space-y-6">
-                {/* Finetune Strength */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                      Finetune-styrka
-                    </label>
-                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-                      {settings.finetune_strength}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.1"
-                    value={settings.finetune_strength}
-                    onChange={(e) => setSettings(prev => ({ ...prev, finetune_strength: parseFloat(e.target.value) }))}
-                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Styr hur starkt Glenn-konceptet visas. 0.0 = knappt synligt, 1.0 = standard (rekommenderad), 2.0 = maximalt starkt. 
-                    Öka om Glenn inte syns tillräckligt tydligt, minska om du ser artefakter.
-                  </p>
-                </div>
-
-                {/* Aspect Ratio */}
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Bildformat
-                  </label>
-                  <select
-                    value={settings.aspect_ratio}
-                    onChange={(e) => setSettings(prev => ({ ...prev, aspect_ratio: e.target.value }))}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {ASPECT_RATIOS.map(ratio => (
-                      <option key={ratio.value} value={ratio.value}>
-                        {ratio.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Välj bildformat för din Glenn. Kvadrat fungerar bra för porträtt, bredformat för landskapsbilder.
-                  </p>
-                </div>
-
-                {/* Steps */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                      Genereringssteg
-                    </label>
-                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-                      {settings.steps}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    step="1"
-                    value={settings.steps}
-                    onChange={(e) => setSettings(prev => ({ ...prev, steps: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Antal inferenssteg. Fler steg = bättre kvalitet men tar längre tid. 20-30 är ofta tillräckligt, 50 ger högsta kvalitet.
-                  </p>
-                </div>
-
-                {/* Guidance */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                      Prompt-styrka
-                    </label>
-                    <span className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-                      {settings.guidance}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    step="0.5"
-                    value={settings.guidance}
-                    onChange={(e) => setSettings(prev => ({ ...prev, guidance: parseFloat(e.target.value) }))}
-                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Hur noga AI:n följer din beskrivning. Högre värden = följer texten striktare, lägre = mer kreativ frihet. 3.5 är en bra balans.
-                  </p>
-                </div>
-
-                {/* Safety Tolerance */}
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Säkerhetsfiltrering
-                  </label>
-                  <select
-                    value={settings.safety_tolerance}
-                    onChange={(e) => setSettings(prev => ({ ...prev, safety_tolerance: e.target.value }))}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {SAFETY_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Styr hur strikt innehållsfiltrering som används. Strikt = säkrast, Tillåtande = mest kreativ frihet.
-                  </p>
-                </div>
-
-                {/* Seed */}
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Slumptal (seed) - Valfritt
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Lämna tomt för slumpmässigt"
-                    value={settings.seed || ""}
-                    onChange={(e) => setSettings(prev => ({ 
-                      ...prev, 
-                      seed: e.target.value ? parseInt(e.target.value) : undefined 
-                    }))}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Använd samma seed för att få liknande resultat. Lämna tomt för helt nya variationer varje gång.
-                  </p>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700">
-                <Button
-                  onClick={() => setSettings(DEFAULT_SETTINGS)}
-                  variant="outline"
-                  size="sm"
-                >
-                  Återställ till standard
-                </Button>
-                <Button
-                  onClick={() => setShowSettings(false)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                >
-                  Stäng
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Prompt Guidelines Dialog */}
         {showGuidelines && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowGuidelines(false)}>
@@ -1136,7 +859,7 @@ export default function Home() {
                     🎯 Viktigaste regeln
                   </h3>
                   <p className="text-purple-800 dark:text-purple-200">
-                    <strong>Inkludera alltid &quot;Glenn&quot; i din beskrivning!</strong> Glenn måste vara en del av prompten för att fine-tuningen ska fungera.
+                    <strong>Beskriv vad du vill att Glenn ska vara eller göra.</strong> Du behöver inte skriva &quot;Glenn&quot; – appen använder en Glenn-referensbild under huven.
                   </p>
                 </div>
 
@@ -1155,7 +878,7 @@ export default function Home() {
                           Använd exakta färgnamn, detaljerade beskrivningar och tydliga verb. Undvik vaga termer.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: &quot;Glenn i röd flanellskjorta&quot; istället för &quot;Glenn i snygg skjorta&quot;
+                          Exempel: &quot;i röd flanellskjorta&quot; istället för &quot;i snygg skjorta&quot;
                         </p>
                       </div>
 
@@ -1165,7 +888,7 @@ export default function Home() {
                           Testa grundläggande ändringar först, lägg sedan till komplexitet. AI:n hanterar iterativ redigering mycket bra.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: Först &quot;Glenn som kock&quot;, sedan &quot;Glenn som kock som lagar pasta i italienskt kök&quot;
+                          Exempel: Först &quot;som kock&quot;, sedan &quot;som kock som lagar pasta i italienskt kök&quot;
                         </p>
                       </div>
 
@@ -1175,7 +898,7 @@ export default function Home() {
                           Säg uttryckligen vad som ska vara oförändrat. Använd fraser som &quot;behåll samma ansiktsdrag/komposition/belysning&quot;.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: &quot;Glenn som astronaut, behåll samma ansiktsuttryck och belysning&quot;
+                          Exempel: &quot;som astronaut, behåll samma ansiktsuttryck och belysning&quot;
                         </p>
                       </div>
 
@@ -1185,7 +908,7 @@ export default function Home() {
                           Använd &quot;Glenn&quot; eller specifika beskrivningar istället för pronomen som &quot;han&quot;, &quot;den&quot; eller &quot;denna&quot;.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: &quot;Glenn med kort svart hår&quot; istället för &quot;han&quot;
+                          Exempel: &quot;med kort svart hår&quot; istället för &quot;han&quot;
                         </p>
                       </div>
 
@@ -1195,7 +918,7 @@ export default function Home() {
                           När du ändrar bakgrund eller miljö, specificera &quot;behåll exakt kameravinkel, position och inramning&quot;.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: &quot;Glenn på stranden, behåll samma kameravinkel och position&quot;
+                          Exempel: &quot;på stranden, behåll samma kameravinkel och position&quot;
                         </p>
                       </div>
 
@@ -1205,7 +928,7 @@ export default function Home() {
                           &quot;Transformera&quot; kan innebära total förändring, medan &quot;byt kläder&quot; eller &quot;ersätt bakgrund&quot; ger mer kontroll.
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                          Exempel: &quot;Byt Glenns t-shirt till kostym&quot; istället för &quot;transformera Glenn&quot;
+                          Exempel: &quot;Byt t-shirt till kostym&quot; istället för &quot;transformera helt&quot;
                         </p>
                       </div>
                     </div>
@@ -1220,15 +943,15 @@ export default function Home() {
                     <div className="space-y-3 text-sm">
                       <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                         <p className="font-medium text-green-600 dark:text-green-400">Bra:</p>
-                        <p className="text-slate-700 dark:text-slate-300">&quot;Glenn som astronaut i vit rymddräkt på månens yta, behåll samma ansiktsuttryck&quot;</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;som astronaut i vit rymddräkt på månens yta, behåll samma ansiktsuttryck&quot;</p>
                       </div>
                       <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                         <p className="font-medium text-green-600 dark:text-green-400">Bra:</p>
-                        <p className="text-slate-700 dark:text-slate-300">&quot;Glenn som kock i vitt kockmössa och förkläde som lagar pasta i modernt kök&quot;</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;som kock i vit kockmössa och förkläde som lagar pasta i modernt kök&quot;</p>
                       </div>
                       <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                         <p className="font-medium text-red-600 dark:text-red-400">Undvik:</p>
-                        <p className="text-slate-700 dark:text-slate-300">&quot;Han som något coolt&quot; (för vagt, ingen Glenn-referens)</p>
+                        <p className="text-slate-700 dark:text-slate-300">&quot;något coolt&quot; (för vagt)</p>
                       </div>
                     </div>
                   </div>
