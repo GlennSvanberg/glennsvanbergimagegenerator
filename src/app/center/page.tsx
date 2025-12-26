@@ -69,7 +69,7 @@ export default function PagesPage() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
+      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
         <div className="container mx-auto px-4 py-4 sm:py-8">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
