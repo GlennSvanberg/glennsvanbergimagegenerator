@@ -1,6 +1,6 @@
 # Glenn Svanberg - AI Image Generator
 
-This is a Next.js application that generates AI images of Glenn Svanberg using the Flux API and stores them in Supabase.
+This is a Next.js application that generates AI images of Glenn Svanberg using **Gemini (Gemini 2.5 Flash)** and stores them in Supabase.
 
 ## Environment Setup
 
@@ -11,9 +11,20 @@ Create a `.env.local` file in the root directory with the following variables:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
-# Black Forest Labs (Flux) API Configuration (Server-side only)
-# Get your API key from: https://api.bfl.ml/
-BFL_API_KEY=your_bfl_api_key_here
+# Gemini API Configuration (Server-side only)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Where to pick reference photos of Glenn (Supabase Storage)
+# Put a handful of Glenn photos in this folder and make the bucket public
+# (or accessible with your anon key).
+GLENN_REFERENCE_BUCKET=glennsvanberg
+GLENN_REFERENCE_FOLDER=glenn-reference
+
+# Where generated images are uploaded (defaults to glennsvanberg)
+GENERATED_IMAGES_BUCKET=glennsvanberg
+
+# Optional: override the Gemini model used for image generation/editing
+# GEMINI_IMAGE_MODEL=gemini-2.5-flash
 ```
 
 ## Getting Started
@@ -33,26 +44,26 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Features
 
-- 🎨 AI-powered image generation using Flux API with Glenn Svanberg finetune
+- 🎨 AI-powered image generation using Gemini with a Glenn reference image
 - 📸 Photo gallery with automatic categorization
 - ☁️ Supabase storage integration
 - 💜 Like and share functionality
 - 📱 Responsive design with beautiful UI
-- ⚡ Real-time polling for image generation status
+- ⚡ No polling required (single request)
 
 ## How it Works
 
-1. Enter a creative prompt describing Glenn in different scenarios
+1. Enter a creative prompt describing what you want Glenn to be/do
 2. The frontend sends the request to our secure API route
-3. The server-side API calls Flux API with the Glenn Svanberg finetune model
-4. Polls every 500ms for generation completion on the server
-5. Downloads and uploads the generated image to Supabase storage
+3. The server picks a random Glenn reference photo from Supabase (not shown to the user)
+4. The server rewrites the prompt under the hood (e.g. “make the person in the image …”)
+5. The server calls Gemini to generate an edited image and uploads it to Supabase storage
 6. Displays the new Glenn image in the gallery
 
 ## Security
 
-- The BFL API key is kept secure on the server side and never exposed to the client
-- All Flux API calls are made through our own secure API routes
+- The Gemini API key is kept secure on the server side and never exposed to the client
+- All Gemini calls are made through our own secure API routes
 - Only the necessary data is passed between client and server
 
 ## Learn More
