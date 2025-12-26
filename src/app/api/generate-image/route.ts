@@ -184,10 +184,13 @@ async function generateWithGemini({
     throw new Error('GEMINI_API_KEY not found in environment variables');
   }
 
-  const preferredModel = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash';
+  const preferredModel =
+    process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3-pro-image-preview';
   const fallbackModels = [
     preferredModel,
     // Practical fallbacks for Gemini image generation/editing APIs.
+    'gemini-3-pro-image-preview',
+    'gemini-2.5-flash',
     'gemini-2.0-flash-exp',
     'gemini-2.0-flash',
   ].filter((v, i, arr) => arr.indexOf(v) === i);
