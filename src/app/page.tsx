@@ -532,10 +532,6 @@ export default function Home() {
                 )}
               </Button>
             </div>
-            
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 text-center">
-              Tryck Enter
-            </p>
           </div>
         </div>
 
