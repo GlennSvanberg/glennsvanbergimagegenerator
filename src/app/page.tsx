@@ -9,21 +9,6 @@ import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCir
 import { getSupabaseClient, type GlennPhoto } from "@/lib/supabase";
 import { generateGlennImage } from "@/lib/gemini";
 
-
-
-const funnyPrompts = [
-  "astronaut på Mars",
-  "vikingakung",
-  "superhjälte",
-  "kock",
-  "pirat",
-  "rockstjärna",
-  "ninja",
-  "cowboy",
-  "trollkarl",
-  "surfare"
-];
-
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -32,7 +17,6 @@ export default function Home() {
   const [photos, setPhotos] = useState<GlennPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentFunnyPrompt, setCurrentFunnyPrompt] = useState("");
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<GlennPhoto | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number>(0);
@@ -43,12 +27,6 @@ export default function Home() {
     console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
     console.log('Expected Supabase URL should contain: zqwbcxhfwxuialdbdbxo.supabase.co');
-  }, []);
-
-  // Set random funny prompt as placeholder
-  useEffect(() => {
-    const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
-    setCurrentFunnyPrompt(randomPrompt);
   }, []);
 
   // Fetch photos from Supabase storage
@@ -155,8 +133,6 @@ export default function Home() {
       
       // Clear form and set new random prompt
       setPrompt("");
-      const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
-      setCurrentFunnyPrompt(randomPrompt);
     } catch (err) {
       console.error("💥 Generation error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Okänt fel uppstod';
@@ -479,7 +455,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+                <h2 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
                   Skapa din egen Glenn!
                 </h2>
               </div>
@@ -524,7 +500,7 @@ export default function Home() {
             <div className="flex gap-3 items-start">
               <div className="flex-1 relative">
                 <textarea
-                  placeholder="Beskriv vad du vill att Glenn ska vara eller göra..."
+                  placeholder="kung glenn"
                   value={prompt}
                   onChange={handleTextareaChange}
                   onKeyPress={handleKeyPress}
@@ -557,8 +533,8 @@ export default function Home() {
               </Button>
             </div>
             
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 text-center">
-              Tryck Enter • Ex: &quot;{currentFunnyPrompt}&quot;
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 text-center">
+              Tryck Enter
             </p>
           </div>
         </div>
