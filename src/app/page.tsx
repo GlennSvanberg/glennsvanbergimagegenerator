@@ -12,25 +12,22 @@ import { generateGlennImage } from "@/lib/gemini";
 
 
 const funnyPrompts = [
-  "Glenn som rymdfärare på Mars",
-  "Glenn som vikingakung",
-  "Glenn som superhelt med lasögon",
-  "Glenn som kock som lagar köttbullar",
-  "Glenn som pirat på äventyr",
-  "Glenn som rockstjärna på scen",
-  "Glenn som ninja i Tokyo",
-  "Glenn som cowboy i vilda västern",
-  "Glenn som trollkarl med trollstav",
-  "Glenn som surfaren på vågor"
+  "astronaut på Mars",
+  "vikingakung",
+  "superhjälte",
+  "kock",
+  "pirat",
+  "rockstjärna",
+  "ninja",
+  "cowboy",
+  "trollkarl",
+  "surfare"
 ];
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStatus, setGenerationStatus] = useState<string>("");
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [currentProgressStep, setCurrentProgressStep] = useState("");
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
   const [photos, setPhotos] = useState<GlennPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,30 +44,6 @@ export default function Home() {
     console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
     console.log('Expected Supabase URL should contain: zqwbcxhfwxuialdbdbxo.supabase.co');
   }, []);
-
-  // Funny progress steps for Glenn generation
-  const funnyProgressSteps = [
-    "Odlar skägg åt Glenn...",
-    "Kalibrerar ögonavstånd...",
-    "Justerar hårlängd och volym...", 
-    "Programmerar Glenns charm...",
-    "Laddar ner svenska uttryck...",
-    "Optimerar leendekurva...",
-    "Installerar svenskhet.exe...",
-    "Renderar Glenn-attityd...",
-    "Kompilerar personlighet...",
-    "Syncroniserar med Värmland...",
-    "Applicerar nordisk cool...",
-    "Finjusterar ögonskratt...",
-    "Laddar Glenn-essensen...",
-    "Konfigurerar karisma...",
-    "Beräknar optimal pose...",
-    "Mixar humor och charm...",
-    "Polerar slutresultatet...",
-    "Kvalitetskontrollerar Glenn...",
-    "Sparar mästerverk...",
-    "Förbereder för debut..."
-  ];
 
   // Set random funny prompt as placeholder
   useEffect(() => {
@@ -163,86 +136,11 @@ export default function Home() {
     fetchPhotos();
   }, []);
 
-  // Progress simulation based on 10-second estimate with funny steps
-  const simulateProgress = (onComplete: () => void) => {
-    let progress = 0;
-    let isCompleted = false;
-    let lastStepIndex = -1;
-    
-    const updateProgress = () => {
-      if (isCompleted) return;
-      
-      if (progress < 20) {
-        // Slow start (0-20% in ~2 seconds)
-        progress += Math.random() * 3 + 1;
-      } else if (progress < 50) {
-        // Medium progress (20-50% in ~3 seconds)
-        progress += Math.random() * 2.5 + 1.5;
-      } else if (progress < 80) {
-        // Steady progress (50-80% in ~3 seconds)
-        progress += Math.random() * 2 + 1;
-      } else if (progress < 95) {
-        // Slower progress (80-95% in ~2 seconds)
-        progress += Math.random() * 1 + 0.5;
-      } else {
-        // Very slow progress (95-99% - wait for actual completion)
-        progress += Math.random() * 0.3 + 0.1;
-      }
-      
-      // Cap at 99% until actual completion
-      progress = Math.min(progress, 99);
-      setGenerationProgress(Math.round(progress));
-      
-      // Update funny step based on progress
-      const stepIndex = Math.floor((progress / 100) * funnyProgressSteps.length);
-      if (stepIndex !== lastStepIndex && stepIndex < funnyProgressSteps.length) {
-        setCurrentProgressStep(funnyProgressSteps[stepIndex]);
-        lastStepIndex = stepIndex;
-      }
-    };
-    
-    // Start with first step
-    setCurrentProgressStep(funnyProgressSteps[0]);
-    
-    const intervalId = setInterval(updateProgress, 200); // Slightly slower updates for 10-second timing
-    
-    // Return function to complete progress
-    return () => {
-      isCompleted = true;
-      clearInterval(intervalId);
-      
-      // Show final step
-      setCurrentProgressStep("🎉 Glenn är klar!");
-      
-      // Animate to 100%
-      let currentProgress = progress;
-      const completeInterval = setInterval(() => {
-        currentProgress += 5;
-        if (currentProgress >= 100) {
-          currentProgress = 100;
-          setGenerationProgress(100);
-          clearInterval(completeInterval);
-          setTimeout(onComplete, 200);
-        } else {
-          setGenerationProgress(Math.round(currentProgress));
-        }
-      }, 50);
-    };
-  };
-
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setGenerationError(null);
-    setGenerationStatus("Skapar Glenn med AI-magi...");
-    setGenerationProgress(0);
-    setCurrentProgressStep("");
-    
-    // Start progress simulation
-    const completeProgress = simulateProgress(() => {
-      setGenerationStatus("🎉 Ny Glenn skapad!");
-    });
     
     try {
       console.log("🎨 Genererar bild med prompt:", prompt);
@@ -252,9 +150,6 @@ export default function Home() {
       
       console.log("✅ Image generation and storage complete:", supabaseUrl);
       
-      // Complete the progress bar
-      completeProgress();
-      
       // Refresh photo list to show new image
       await fetchPhotos();
       
@@ -262,23 +157,10 @@ export default function Home() {
       setPrompt("");
       const randomPrompt = funnyPrompts[Math.floor(Math.random() * funnyPrompts.length)];
       setCurrentFunnyPrompt(randomPrompt);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setGenerationStatus("");
-        setGenerationProgress(0);
-        setCurrentProgressStep("");
-      }, 3000);
-      
     } catch (err) {
       console.error("💥 Generation error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Okänt fel uppstod';
       setGenerationError(errorMessage);
-      setGenerationStatus("");
-      setGenerationProgress(0);
-      setCurrentProgressStep("");
-      // Stop progress simulation on error
-      completeProgress();
     } finally {
       setIsGenerating(false);
     }
@@ -447,7 +329,7 @@ export default function Home() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
+      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm">
         <div className="container mx-auto px-4 py-4 sm:py-8">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -616,49 +498,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Generation Status with Progress Bar */}
-            {(isGenerating || generationStatus) && (
-              <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
-                <div className="flex items-center gap-2 mb-3">
-                  {isGenerating ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-600 dark:text-purple-400" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  )}
-                  <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                    {generationStatus}
-                  </span>
-                  {isGenerating && (
-                    <span className="text-xs text-purple-600 dark:text-purple-400 ml-auto">
-                      {generationProgress}%
-                    </span>
-                  )}
-                </div>
-                
-                {/* Progress Bar */}
-                {isGenerating && (
-                  <div className="w-full bg-purple-200 dark:bg-purple-800 rounded-full h-3 overflow-hidden shadow-inner">
-                    <div 
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-500 ease-out relative overflow-hidden"
-                      style={{ width: `${generationProgress}%` }}
-                    >
-                      {/* Animated shimmer effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Funny progress step indicator */}
-                {isGenerating && currentProgressStep && (
-                  <div className="text-center mt-3">
-                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300 italic">
-                      {currentProgressStep}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Generation Error */}
             {generationError && (
               <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
@@ -719,7 +558,7 @@ export default function Home() {
             </div>
             
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 text-center">
-              ✨ Drivs av AI-magi • Tryck Enter för att skapa • Ex: &quot;{currentFunnyPrompt}&quot;
+              Tryck Enter • Ex: &quot;{currentFunnyPrompt}&quot;
             </p>
           </div>
         </div>
@@ -972,7 +811,7 @@ export default function Home() {
         )}
 
         {/* Bottom spacer to account for fixed input */}
-        <div className="h-40" />
+        <div className="h-28" />
       </main>
 
       {/* Floating Glenn Center Link */}
