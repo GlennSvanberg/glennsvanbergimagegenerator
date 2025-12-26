@@ -109,19 +109,39 @@ async function pickRandomGlennReferenceImage(): Promise<{
 
 function buildHiddenPrompt(userPrompt: string): string {
   const glennDescription =
-    'The person is Glenn Svanberg: a Swedish man (adult), friendly expression, Scandinavian features, natural-looking skin texture, realistic proportions.';
+    'The subject is Glenn Svanberg (adult Swedish/Scandinavian man). Keep natural skin texture and realistic proportions.';
 
   // User should never see this rewritten prompt; we only use it server-side.
-  // The model receives a real Glenn reference photo + this instruction.
+  // The model receives a real Glenn reference photo + these instructions.
+  //
+  // Goal: maximize likeness/identity preservation first, then satisfy the user's creative request.
   return [
-    'You are editing a real photo.',
-    'Use the provided reference image as the base image.',
-    'Make the person in the image look like Glenn Svanberg and keep the same identity across the edit.',
-    glennDescription,
-    'Apply the user’s request below while preserving face structure, age, pose as much as possible, and photorealism.',
-    'Avoid changing background unless requested.',
+    'TASK: Photorealistic image edit with strict identity preservation.',
     '',
-    `User request: ${userPrompt.trim()}`,
+    'IDENTITY LOCK (highest priority):',
+    '- Use the provided reference image as the identity anchor for Glenn Svanberg.',
+    '- The output must be clearly the EXACT same person as the reference (high resemblance).',
+    '- Preserve Glenn’s facial identity: facial structure/proportions, eye shape/spacing, eyebrows, nose shape, lips/mouth, jawline/chin, cheekbones, ears, hairline, and any distinctive traits visible in the reference.',
+    '- Preserve apparent age and ethnicity. Do not “beautify”, stylize, or change face shape.',
+    '- Do NOT replace him with a different person, a lookalike, or a generic face. No face swapping.',
+    '',
+    'ALLOWED CHANGES (only as needed to satisfy the user request):',
+    '- Clothing, accessories, hairstyle changes ONLY if requested; otherwise keep hair/facial hair consistent with the reference.',
+    '- Pose, camera angle, and situation may change, but the face must still match the reference identity.',
+    '',
+    'QUALITY REQUIREMENTS:',
+    '- Sharp, clear facial details (no blur, smearing, melting, or distortion).',
+    '- Keep photorealism, natural lighting, and coherent anatomy.',
+    '',
+    'BACKGROUND:',
+    '- Avoid changing the background unless the user request requires it.',
+    '',
+    'CONFLICT RULE:',
+    '- If any part of the user request conflicts with identity preservation, preserve identity and reinterpret the request in the closest possible way.',
+    '',
+    glennDescription,
+    '',
+    `USER REQUEST (apply while following IDENTITY LOCK): ${userPrompt.trim()}`,
   ].join('\n');
 }
 
