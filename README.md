@@ -1,6 +1,6 @@
 # Glenn Svanberg - AI Image Generator
 
-This is a Next.js application that generates AI images of Glenn Svanberg using **Gemini (Gemini 2.5 Flash)** and stores them in Supabase.
+This is a Next.js application that generates AI images of Glenn Svanberg using **Gemini (`gemini-3-pro-image-preview`)** and stores them in Supabase.
 
 ## Environment Setup
 
@@ -24,7 +24,7 @@ GLENN_REFERENCE_FOLDER=glenn-reference
 GENERATED_IMAGES_BUCKET=glennsvanberg
 
 # Optional: override the Gemini model used for image generation/editing
-# GEMINI_IMAGE_MODEL=gemini-2.5-flash
+# GEMINI_IMAGE_MODEL=gemini-3-pro-image-preview
 ```
 
 ## Getting Started
