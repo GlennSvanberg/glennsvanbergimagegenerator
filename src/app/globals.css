@@ -135,3 +135,41 @@
 .fullscreen-open {
   overflow: hidden;
 }
+
+/* Easter egg: 7 clicks/taps on an image */
+@keyframes eastereggSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  /* start slow */
+  12% {
+    transform: rotate(35deg);
+  }
+  /* accelerate */
+  30% {
+    transform: rotate(360deg);
+  }
+  /* very fast mid-section */
+  55% {
+    transform: rotate(2520deg);
+  }
+  /* start slowing down */
+  80% {
+    transform: rotate(3060deg);
+  }
+  100% {
+    transform: rotate(3240deg);
+  }
+}
+
+.easteregg-spin {
+  animation: eastereggSpin 2600ms linear both;
+  transform-origin: center;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .easteregg-spin {
+    animation: none;
+  }
+}
