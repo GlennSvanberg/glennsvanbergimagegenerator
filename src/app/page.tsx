@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Camera, Sparkles, Heart, Download, Share2, Loader2, RefreshCw, AlertCircle, X, ChevronLeft, ChevronRight, ZoomIn, HelpCircle, Globe } from "lucide-react";
 import { getSupabaseClient, type GlennPhoto } from "@/lib/supabase";
 import { generateGlennImage } from "@/lib/gemini";
+import { EasterEggSpinWrapper } from "@/components/easter-egg-spin-wrapper";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -372,68 +373,75 @@ export default function Home() {
               return (
                 <Card key={photo.id} className="w-full max-w-sm group overflow-hidden hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm hover:-translate-y-1">
                   <CardContent className="p-0 relative">
-                    <div className="relative overflow-hidden rounded-lg cursor-pointer" onClick={() => openFullscreen(photo, index)}>
-                      <div className="relative aspect-[4/5]">
-                        <Image
-                          src={photo.url}
-                          alt={`Glenn - ${photo.name}`}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
-                        
-                        {/* Fullscreen icon overlay */}
-                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
-                            <ZoomIn className="h-4 w-4 text-white" />
+                    <EasterEggSpinWrapper
+                      className="relative overflow-hidden rounded-lg cursor-pointer"
+                      onNormalClick={() => openFullscreen(photo, index)}
+                    >
+                      {({ spinClassName }) => (
+                        <>
+                          <div className="relative aspect-[4/5]">
+                            <Image
+                              src={photo.url}
+                              alt={`Glenn - ${photo.name}`}
+                              fill
+                              className={`object-cover transition-transform duration-500 group-hover:scale-105 ${spinClassName}`}
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            />
+
+                            {/* Fullscreen icon overlay */}
+                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
+                                <ZoomIn className="h-4 w-4 text-white" />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      
-                      {/* Hover overlay with actions */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <div className="absolute bottom-4 right-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleLike(photo.id);
-                              }}
-                              title="Gilla denna Glenn"
-                            >
-                              <Heart className={`h-4 w-4 ${likedPhotos.has(photo.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyImageToClipboard(photo.url);
-                              }}
-                              title="Kopiera Glenn"
-                            >
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(photo.url, '_blank');
-                              }}
-                              title="Ladda ner Glenn"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
+
+                          {/* Hover overlay with actions */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                            <div className="absolute bottom-4 right-4" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleLike(photo.id);
+                                  }}
+                                  title="Gilla denna Glenn"
+                                >
+                                  <Heart className={`h-4 w-4 ${likedPhotos.has(photo.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyImageToClipboard(photo.url);
+                                  }}
+                                  title="Kopiera Glenn"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(photo.url, '_blank');
+                                  }}
+                                  title="Ladda ner Glenn"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
+                        </>
+                      )}
+                    </EasterEggSpinWrapper>
                   </CardContent>
                 </Card>
               );
@@ -576,14 +584,18 @@ export default function Home() {
             {/* Image container */}
             <div className="relative w-full h-full flex items-center justify-center p-4">
               <div className="relative w-full h-full flex items-center justify-center" style={{ maxWidth: 'calc(100vw - 2rem)', maxHeight: 'calc(100vh - 2rem)' }}>
-                <Image
-                  src={fullscreenImage.url}
-                  alt={`Glenn - ${fullscreenImage.name}`}
-                  fill
-                  className="object-contain rounded-lg"
-                  priority
-                  sizes="100vw"
-                />
+                <EasterEggSpinWrapper className="relative w-full h-full">
+                  {({ spinClassName }) => (
+                    <Image
+                      src={fullscreenImage.url}
+                      alt={`Glenn - ${fullscreenImage.name}`}
+                      fill
+                      className={`object-contain rounded-lg ${spinClassName}`}
+                      priority
+                      sizes="100vw"
+                    />
+                  )}
+                </EasterEggSpinWrapper>
               </div>
             </div>
 
