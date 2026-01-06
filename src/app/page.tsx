@@ -390,7 +390,7 @@ export default function Home() {
 
                             {/* Fullscreen icon overlay */}
                             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
+                              <div className="bg-black/50 backdrop-blur-sm rounded-full p-2" trackaton-on-click="photo-zoom">
                                 <ZoomIn className="h-4 w-4 text-white" />
                               </div>
                             </div>
@@ -409,6 +409,7 @@ export default function Home() {
                                     toggleLike(photo.id);
                                   }}
                                   title="Gilla denna Glenn"
+                                  trackaton-on-click="photo-like"
                                 >
                                   <Heart className={`h-4 w-4 ${likedPhotos.has(photo.id) ? 'fill-red-500 text-red-500' : ''}`} />
                                 </Button>
@@ -421,6 +422,7 @@ export default function Home() {
                                     copyImageToClipboard(photo.url);
                                   }}
                                   title="Kopiera Glenn"
+                                  trackaton-on-click="photo-copy"
                                 >
                                   <Share2 className="h-4 w-4" />
                                 </Button>
@@ -433,6 +435,7 @@ export default function Home() {
                                     window.open(photo.url, '_blank');
                                   }}
                                   title="Ladda ner Glenn"
+                                  trackaton-on-click="photo-download"
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>
@@ -476,6 +479,7 @@ export default function Home() {
                   size="sm"
                   className="h-12 w-12 p-0 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors"
                   title="Prompt-guide för bästa resultat"
+                  trackaton-on-click="open-guidelines"
                 >
                   <HelpCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                 </Button>
@@ -526,6 +530,7 @@ export default function Home() {
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isGenerating}
                 className="h-12 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                trackaton-on-click="generate-glenn"
               >
                 {isGenerating ? (
                   <div className="flex items-center gap-2">
@@ -553,6 +558,7 @@ export default function Home() {
               size="sm"
               className="absolute top-4 right-4 z-10 h-10 w-10 p-0 text-white hover:bg-white/20 rounded-full"
               title="Stäng (Escape)"
+              trackaton-on-click="fullscreen-close"
             >
               <X className="h-6 w-6" />
             </Button>
@@ -566,6 +572,7 @@ export default function Home() {
                   size="sm"
                   className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 p-0 text-white hover:bg-white/20 rounded-full"
                   title="Föregående bild (←)"
+                  trackaton-on-click="fullscreen-prev"
                 >
                   <ChevronLeft className="h-8 w-8" />
                 </Button>
@@ -575,6 +582,7 @@ export default function Home() {
                   size="sm"
                   className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 p-0 text-white hover:bg-white/20 rounded-full"
                   title="Nästa bild (→)"
+                  trackaton-on-click="fullscreen-next"
                 >
                   <ChevronRight className="h-8 w-8" />
                 </Button>
@@ -615,6 +623,7 @@ export default function Home() {
                       className="h-8 w-8 p-0 text-white hover:bg-white/20"
                       onClick={() => toggleLike(fullscreenImage.id)}
                       title="Gilla denna Glenn"
+                      trackaton-on-click="fullscreen-like"
                     >
                       <Heart className={`h-4 w-4 ${likedPhotos.has(fullscreenImage.id) ? 'fill-red-500 text-red-500' : ''}`} />
                     </Button>
@@ -624,6 +633,7 @@ export default function Home() {
                       className="h-8 w-8 p-0 text-white hover:bg-white/20"
                       onClick={() => copyImageToClipboard(fullscreenImage.url)}
                       title="Kopiera Glenn"
+                      trackaton-on-click="fullscreen-copy"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -633,6 +643,7 @@ export default function Home() {
                       className="h-8 w-8 p-0 text-white hover:bg-white/20"
                       onClick={() => window.open(fullscreenImage.url, '_blank')}
                       title="Ladda ner Glenn"
+                      trackaton-on-click="fullscreen-download"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -804,6 +815,7 @@ export default function Home() {
           asChild
           variant="outline"
           className="bg-white/80 dark:bg-slate-900/70 backdrop-blur border border-slate-200/70 dark:border-slate-700/70 text-slate-800 dark:text-slate-100 shadow-sm hover:shadow-md transition-all duration-200 rounded-xl h-10 px-3"
+          trackaton-on-click="nav-glenn-center"
         >
           <a href="/center" className="flex items-center gap-2" title="Besök Glenn Center">
             <Globe className="h-4 w-4 text-slate-600 dark:text-slate-300" />
